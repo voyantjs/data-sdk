@@ -54,6 +54,12 @@ function installPackedPackage(appDir, tarballPath, packageName) {
   rmSync(extractDir, { force: true, recursive: true });
 }
 
+/**
+ * Confirms the public package, when installed, exposes the seven top-level
+ * sub-product namespaces (`static`, `fx`, `seo`, `reviews`, `hotels`,
+ * `restaurants`, `experiences`) and a representative method on each. The
+ * full per-route surface is verified by `verify:client-route-coverage`.
+ */
 function verifyInstalledImports(tarballs) {
   const appDir = mkdtempSync(path.join(tmpdir(), "voyant-sdk-app-"));
 
@@ -87,37 +93,46 @@ function verifyInstalledImports(tarballs) {
 
           const data = createVoyantDataClient({ apiKey: "data_key" });
 
-          assert.equal(typeof data.countries.list, "function");
-          assert.equal(typeof data.countries.get, "function");
-          assert.equal(typeof data.countries.listLight, "function");
-          assert.equal(typeof data.regions.list, "function");
-          assert.equal(typeof data.regions.get, "function");
-          assert.equal(typeof data.cities.search, "function");
-          assert.equal(typeof data.cities.nearby, "function");
-          assert.equal(typeof data.cities.get, "function");
-          assert.equal(typeof data.airports.search, "function");
-          assert.equal(typeof data.airports.nearby, "function");
-          assert.equal(typeof data.airports.get, "function");
-          assert.equal(typeof data.airlines.search, "function");
-          assert.equal(typeof data.airlines.get, "function");
-          assert.equal(typeof data.aircraft.list, "function");
-          assert.equal(typeof data.aircraft.get, "function");
-          assert.equal(typeof data.languages.list, "function");
-          assert.equal(typeof data.languages.get, "function");
-          assert.equal(typeof data.currencies.list, "function");
-          assert.equal(typeof data.currencies.get, "function");
-          assert.equal(typeof data.timezones.list, "function");
-          assert.equal(typeof data.geographicRegions.list, "function");
-          assert.equal(typeof data.geographicRegions.get, "function");
+          // static
+          assert.equal(typeof data.static.countries.list, "function");
+          assert.equal(typeof data.static.countries.get, "function");
+          assert.equal(typeof data.static.airports.search, "function");
+          assert.equal(typeof data.static.airports.nearby, "function");
+          assert.equal(typeof data.static.airlines.get, "function");
+          assert.equal(typeof data.static.aircraft.list, "function");
+          assert.equal(typeof data.static.languages.list, "function");
+          assert.equal(typeof data.static.currencies.get, "function");
+          assert.equal(typeof data.static.timezones.list, "function");
+          assert.equal(typeof data.static.geographicRegions.list, "function");
+
+          // fx
           assert.equal(typeof data.fx.latest, "function");
           assert.equal(typeof data.fx.pair, "function");
           assert.equal(typeof data.fx.enriched, "function");
           assert.equal(typeof data.fx.history, "function");
           assert.equal(typeof data.fx.codes, "function");
           assert.equal(typeof data.fx.quota, "function");
-          assert.equal(typeof data.seo.request, "function");
-          assert.equal(typeof data.seo.get, "function");
-          assert.equal(typeof data.seo.post, "function");
+
+          // seo
+          assert.equal(typeof data.seo.serp.google.organic.searches.create, "function");
+          assert.equal(typeof data.seo.serp.google.organic.searches.screenshot, "function");
+          assert.equal(typeof data.seo.keywordsData.googleAds.searchVolume.create, "function");
+          assert.equal(typeof data.seo.aiOptimization.aiKeywordData.keywordVolumes.create, "function");
+          assert.equal(typeof data.seo.backlinks.summary.create, "function");
+          assert.equal(typeof data.seo.dataforseoLabs.google.keywordOverview.create, "function");
+          assert.equal(typeof data.seo.onPage.siteAudits.create, "function");
+          assert.equal(typeof data.seo.businessData.google.myBusinessInfo.create, "function");
+          assert.equal(typeof data.seo.contentAnalysis.search.create, "function");
+          assert.equal(typeof data.seo.domainAnalytics.whois.list.create, "function");
+
+          // verticals
+          assert.equal(typeof data.reviews.google.reviews.create, "function");
+          assert.equal(typeof data.reviews.trustpilot.search.create, "function");
+          assert.equal(typeof data.hotels.google.hotelSearches.create, "function");
+          assert.equal(typeof data.hotels.tripadvisor.searches.create, "function");
+          assert.equal(typeof data.hotels.tripadvisor.reference.locations.list, "function");
+          assert.equal(typeof data.restaurants.tripadvisor.searches.create, "function");
+          assert.equal(typeof data.experiences.tripadvisor.searches.create, "function");
         `,
       ],
       {
@@ -130,6 +145,11 @@ function verifyInstalledImports(tarballs) {
   }
 }
 
+/**
+ * Spot-checks that key public types resolve and that representative client
+ * methods type-check end-to-end. Each sub-product namespace gets one
+ * generic-shape assertion so future shape changes break the build loudly.
+ */
 function verifyInstalledTypecheck(tarballs) {
   const appDir = mkdtempSync(path.join(tmpdir(), "voyant-sdk-types-"));
 
@@ -183,18 +203,21 @@ function verifyInstalledTypecheck(tarballs) {
           type AirportType,
           type City,
           type Country,
-          type Currency,
-          type FxResponse,
+          type CurrencyEntry,
+          type FxLatestResponse,
+          type FxPairResponse,
           type GeographicRegion,
-          type Language,
-          type LightCountry,
+          type GoogleHotelSearchesRequest,
+          type GoogleQaRequest,
+          type GoogleReviewsRequest,
+          type LanguageEntry,
           type ListResponse,
-          type NearbyAirport,
-          type NearbyCity,
           type Region,
-          type SeoTaskResponse,
+          type Search,
           type SingleResponse,
-          type Timezone,
+          type TimezoneEntry,
+          type TripadvisorSearchRequest,
+          type TrustpilotSearchRequest,
           type VoyantDataClientOptions,
         } from "@voyantjs/data-sdk";
 
@@ -202,59 +225,60 @@ function verifyInstalledTypecheck(tarballs) {
           apiKey: "data_key",
         } satisfies VoyantDataClientOptions);
 
+        // static
         const countriesPromise: Promise<ListResponse<Country>> =
-          client.countries.list({ region: "Europe" });
+          client.static.countries.list({ region: "Europe" });
         const countryPromise: Promise<SingleResponse<Country>> =
-          client.countries.get("RO");
-        const lightCountriesPromise: Promise<ListResponse<LightCountry>> =
-          client.countries.listLight();
+          client.static.countries.get("RO");
         const regionPromise: Promise<SingleResponse<Region>> =
-          client.regions.get("US-CA");
+          client.static.regions.get("US-CA");
         const cityPromise: Promise<SingleResponse<City>> =
-          client.cities.get("2643743");
-        const nearbyCitiesPromise: Promise<ListResponse<NearbyCity>> =
-          client.cities.nearby({ latitude: 51.5, longitude: -0.1, radiusKm: 25 });
+          client.static.cities.get("2643743");
         const airportPromise: Promise<SingleResponse<Airport>> =
-          client.airports.get("LHR");
-        const nearbyAirportsPromise: Promise<ListResponse<NearbyAirport>> =
-          client.airports.nearby({ latitude: 51.5, longitude: -0.1, radiusKm: 50 });
+          client.static.airports.get("LHR");
         const airlinePromise: Promise<SingleResponse<Airline>> =
-          client.airlines.get("BA");
+          client.static.airlines.get("BA");
         const aircraftPromise: Promise<SingleResponse<Aircraft>> =
-          client.aircraft.get("359");
-        const languagesPromise: Promise<ListResponse<Language>> =
-          client.languages.list();
-        const currenciesPromise: Promise<ListResponse<Currency>> =
-          client.currencies.list();
-        const timezonesPromise: Promise<ListResponse<Timezone>> =
-          client.timezones.list();
+          client.static.aircraft.get("359");
+        const languagesPromise: Promise<ListResponse<LanguageEntry>> =
+          client.static.languages.list();
+        const currenciesPromise: Promise<ListResponse<CurrencyEntry>> =
+          client.static.currencies.list();
+        const timezonesPromise: Promise<ListResponse<TimezoneEntry>> =
+          client.static.timezones.list();
         const geoRegionsPromise: Promise<ListResponse<GeographicRegion>> =
-          client.geographicRegions.list();
+          client.static.geographicRegions.list();
 
-        const fxLatestPromise: Promise<FxResponse> = client.fx.latest("EUR");
-        const fxPairPromise: Promise<FxResponse> = client.fx.pair("EUR", "USD", 100);
-        const fxHistoryPromise: Promise<FxResponse> = client.fx.history({
-          base: "EUR",
-          year: 2024,
-          month: 1,
-          day: 15,
-        });
+        // fx
+        const fxLatestPromise: Promise<FxLatestResponse> = client.fx.latest("EUR");
+        const fxPairPromise: Promise<FxPairResponse> = client.fx.pair("EUR", "USD", 100);
 
-        const seoPromise: Promise<SeoTaskResponse> = client.seo.get(
-          "/serp/google/locations",
-        );
+        // seo (typed namespaces)
+        const serpCreatePromise: Promise<SingleResponse<Search>> =
+          client.seo.serp.google.organic.searches.create({} as never);
+
+        // verticals — opaque request envelopes
+        const googleReviewsReq: GoogleReviewsRequest = {} as GoogleReviewsRequest;
+        const googleQaReq: GoogleQaRequest = {} as GoogleQaRequest;
+        const trustpilotReq: TrustpilotSearchRequest = {} as TrustpilotSearchRequest;
+        const hotelsReq: GoogleHotelSearchesRequest = {} as GoogleHotelSearchesRequest;
+        const tripReq: TripadvisorSearchRequest = {} as TripadvisorSearchRequest;
+        void client.reviews.google.reviews.create(googleReviewsReq);
+        void client.reviews.google.qa.run(googleQaReq);
+        void client.reviews.trustpilot.search.create(trustpilotReq);
+        void client.hotels.google.hotelSearches.create(hotelsReq);
+        void client.hotels.tripadvisor.searches.create(tripReq);
+        void client.restaurants.tripadvisor.searches.create(tripReq);
+        void client.experiences.tripadvisor.searches.create(tripReq);
 
         const airportType: AirportType = "large_airport";
         const aircraftCategory: AircraftCategory = "wide_body";
 
         void countriesPromise;
         void countryPromise;
-        void lightCountriesPromise;
         void regionPromise;
         void cityPromise;
-        void nearbyCitiesPromise;
         void airportPromise;
-        void nearbyAirportsPromise;
         void airlinePromise;
         void aircraftPromise;
         void languagesPromise;
@@ -263,8 +287,7 @@ function verifyInstalledTypecheck(tarballs) {
         void geoRegionsPromise;
         void fxLatestPromise;
         void fxPairPromise;
-        void fxHistoryPromise;
-        void seoPromise;
+        void serpCreatePromise;
         void airportType;
         void aircraftCategory;
       `,
