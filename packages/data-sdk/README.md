@@ -4,12 +4,23 @@ Public TypeScript client for the Voyant Data APIs.
 
 ## Scope
 
-`@voyantjs/data-sdk` is for the hosted Voyant Data product:
+`@voyantjs/data-sdk` is the unified client for the seven sub-products that
+make up the Voyant Data product, all served behind a single hostname:
 
-- static reference data (countries, regions, cities, airports, airlines,
-  aircraft, languages, currencies, timezones, geographic regions)
-- currency exchange (`fx`) — exchangerate-api.com white-label
-- DataForSEO passthrough (`seo`) — generic typed proxy
+- `client.static` — owned reference data (countries, regions, cities,
+  airports, airlines, aircraft, languages, currencies, timezones, geographic
+  regions)
+- `client.fx` — currency exchange (exchangerate-api.com white-label)
+- `client.seo` — DataForSEO white-label, namespaced by sub-product
+  (`serp`, `keywordsData`, `aiOptimization`, `backlinks`, `domainAnalytics`,
+  `contentAnalysis`, `onPage`, `businessData`, `dataforseoLabs`)
+- `client.reviews` — Google Reviews + Trustpilot (async resources)
+- `client.hotels` — Google Hotels + TripAdvisor (async resources, plus a
+  shared `tripadvisor.reference` catalog)
+- `client.restaurants` — TripAdvisor restaurants (async resources +
+  reference)
+- `client.experiences` — TripAdvisor attractions/experiences (async
+  resources + reference)
 
 ## Install
 
@@ -26,44 +37,57 @@ const client = createVoyantDataClient({
   apiKey: process.env.VOYANT_API_KEY!,
 });
 
-const countries = await client.countries.list({ region: "Europe" });
-const lhr = await client.airports.get("LHR");
+const countries = await client.static.countries.list({ region: "Europe" });
+const lhr = await client.static.airports.get("LHR");
 const eurUsd = await client.fx.pair("EUR", "USD", 100);
 ```
 
 ## Shape
 
-Root groups:
+Every sub-product is a top-level namespace on the client:
 
-- `countries`, `regions`, `cities`, `airports`, `airlines`, `aircraft`
-- `languages`, `currencies`, `timezones`, `geographicRegions`
-- `fx` (8 typed currency-exchange methods)
-- `seo` (generic DataForSEO passthrough — `seo.get`, `seo.post`, `seo.request`)
+- static reference: `client.static.{countries,regions,cities,airports,
+  airlines,aircraft,languages,currencies,timezones,geographicRegions}`
+- currency exchange: `client.fx.{latest,pair,enriched,history,codes,quota}`
+- SERP, keywords, AI optimization, backlinks, on-page, content analysis,
+  domain analytics, business data, dataforseo-labs:
+  `client.seo.{serp,keywordsData,aiOptimization,backlinks,onPage,
+  contentAnalysis,domainAnalytics,businessData,dataforseoLabs}`
+- async-resource verticals (Reviews, Hotels, Restaurants, Experiences):
+  `client.{reviews,hotels,restaurants,experiences}` with `create`/`list`/
+  `get`/(some) `run` per resource
 
 The static groups follow a consistent shape: `list` / `search` / `nearby`
 return a `ListResponse<T>` envelope (`{ data, totalCount, nextCursor? }`),
-and `get(id)` returns `SingleResponse<T>` (`{ data }`).
+and `get(id)` returns `SingleResponse<T>` (`{ data }`). Async-resource
+verticals follow the same envelopes: `create` and `get` return
+`SingleResponse<T>`; `list` returns `ListResponse<T>`.
 
 ## Key public types
 
 Useful exported types include:
 
-- `Country`, `Region`, `City`, `Airport`, `Airline`, `Aircraft`
-- `Language`, `Currency`, `Timezone`, `GeographicRegion`, `LightCountry`
-- `AirportType`, `AircraftCategory`
-- `NearbyAirport`, `NearbyCity` (extend their parent with `distanceKm`)
-- `ListResponse<T>`, `SingleResponse<T>`
-- `FxResponse`, `FxHistoryParams`
-- `SeoRequestOptions`, `SeoTaskResponse`
-- `DataErrorCode`
-- `VoyantDataClientOptions`
+- static: `Country`, `Region`, `City`, `Airport`, `Airline`, `Aircraft`,
+  `LanguageEntry`, `CurrencyEntry`, `TimezoneEntry`, `GeographicRegion`
+- envelopes: `ListResponse<T>`, `SingleResponse<T>`,
+  `PaginationParams`, `CountryFilteredPaginationParams`
+- fx: `FxLatestResponse`, `FxPairResponse`, `FxEnrichedResponse`,
+  `FxHistoryResponse`, `FxCodesResponse`, `FxQuotaResponse`
+- seo / serp: `Search`, `GoogleOrganicSearchInput`, `GoogleAiModeSearchInput`,
+  `GoogleMapsSearchInput`, `ScreenshotResult`, `AiSummaryResult`
+- verticals: `GoogleReviewsRequest`, `GoogleQaRequest`,
+  `TrustpilotSearchRequest`, `GoogleHotelSearchesRequest`,
+  `TripadvisorSearchRequest`, `TripadvisorReviewsRequest`,
+  `TripadvisorReferenceLocation`
+- options: `VoyantDataClientOptions`
 
 ## Notes
 
 - default base URL is `https://api.voyantjs.com`
 - request auth defaults to `authorization: Bearer <apiKey>`
-- API tokens are scoped (`data:static:read`, `data:fx:read`, `data:seo:read`);
-  requests fail with `403` if the token does not include the required scope
+- API tokens are scoped per sub-product (`data:static:read`,
+  `data:fx:read`, `data:seo:read`, `data:reviews:read`,
+  `data:hotels:read`, `data:restaurants:read`, `data:experiences:read`)
 - responses preserve the full `{ data, totalCount, nextCursor? }` envelope
   so consumers can paginate without losing metadata
 
