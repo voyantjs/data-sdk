@@ -3,87 +3,57 @@ import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
+import { extractPublicRoutes, products } from "./lib/route-extraction.mjs";
+
+/**
+ * Re-runs the route extraction performed by `sync-route-manifests.mjs` and
+ * compares the result against the checked-in manifest. Fails if the two have
+ * drifted — i.e. the upstream voyant-cloud routes have changed and
+ * `pnpm sync:contracts` was not re-run.
+ */
+
 const repoRoot = path.resolve(import.meta.dirname, "..");
 const voyantCloudRepo = path.resolve(repoRoot, "../voyant-cloud");
 const manifestFile = path.join(repoRoot, "generated", "public-routes.json");
 
-const vaultRoutesFile = path.join(
-  voyantCloudRepo,
-  "apps/api/src/routes/vault.ts",
-);
-const smsRoutesFile = path.join(voyantCloudRepo, "apps/api/src/routes/sms.ts");
-const emailRoutesFile = path.join(
-  voyantCloudRepo,
-  "apps/api/src/routes/email.ts",
-);
-
-function fileExists(filePath) {
-  return fs.existsSync(filePath);
-}
-
-function joinPath(prefix, suffix) {
-  if (!prefix) return suffix;
-  if (suffix === "/" || suffix === "") return prefix;
-  return `${prefix}${suffix.startsWith("/") ? "" : "/"}${suffix}`;
-}
-
-function extractRoutes(filePath, pathPrefix = "") {
-  const source = fs.readFileSync(filePath, "utf8");
-  return new Set(
-    [
-      ...source.matchAll(
-        /\bapp\.(get|post|patch|delete|put)\(\s*"([^"]+)"/gs,
-      ),
-    ].map(
-      ([, method, route]) =>
-        `${method.toUpperCase()} ${joinPath(pathPrefix, route)}`,
-    ),
-  );
-}
-
-function verifyManifest(label, actualRoutes, expectedRoutes) {
-  const missingRoutes = [...actualRoutes]
-    .filter((route) => !expectedRoutes.has(route))
-    .sort();
-  const staleRoutes = [...expectedRoutes]
-    .filter((route) => !actualRoutes.has(route))
-    .sort();
-
-  assert.equal(
-    missingRoutes.length,
-    0,
-    `${label} SDK is missing public routes from voyant-cloud:\n${missingRoutes.join("\n")}`,
-  );
-
-  assert.equal(
-    staleRoutes.length,
-    0,
-    `${label} SDK parity manifest contains routes no longer present in voyant-cloud:\n${staleRoutes.join("\n")}`,
-  );
-}
-
-const requiredFiles = [
-  manifestFile,
-  vaultRoutesFile,
-  smsRoutesFile,
-  emailRoutesFile,
-];
-
-if (!requiredFiles.every(fileExists)) {
+if (!fs.existsSync(manifestFile)) {
   console.log(
-    "Skipping API parity verification: sibling voyant-cloud route files not found.",
+    "Skipping API parity verification: generated/public-routes.json missing.",
+  );
+  process.exit(0);
+}
+
+if (
+  !products.every((p) => fs.existsSync(path.join(voyantCloudRepo, p.routesDir)))
+) {
+  console.log(
+    "Skipping API parity verification: sibling voyant-cloud route directories not found.",
   );
   process.exit(0);
 }
 
 const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8"));
 
-const actualCloudRoutes = new Set([
-  ...extractRoutes(vaultRoutesFile, "/vault/v1"),
-  ...extractRoutes(smsRoutesFile, "/sms/v1"),
-  ...extractRoutes(emailRoutesFile, "/email/v1"),
-]);
+for (const product of products) {
+  const expected = extractPublicRoutes(product, voyantCloudRepo);
+  const actual = manifest[product.key] ?? [];
 
-verifyManifest("Cloud", actualCloudRoutes, new Set(manifest.cloud));
+  const missing = expected.filter((r) => !actual.includes(r));
+  const stale = actual.filter((r) => !expected.includes(r));
 
-console.log("API parity verification passed for Cloud routes.");
+  assert.equal(
+    missing.length,
+    0,
+    `${product.key}: manifest is missing public routes that exist in voyant-cloud:\n${missing.join("\n")}`,
+  );
+  assert.equal(
+    stale.length,
+    0,
+    `${product.key}: manifest contains routes no longer present in voyant-cloud:\n${stale.join("\n")}`,
+  );
+}
+
+const totalRoutes = Object.values(manifest).flat().length;
+console.log(
+  `API parity verification passed for ${products.length} products (${totalRoutes} routes total).`,
+);

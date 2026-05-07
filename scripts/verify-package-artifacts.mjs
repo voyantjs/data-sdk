@@ -11,8 +11,8 @@ const packDir = mkdtempSync(path.join(tmpdir(), "voyant-sdk-pack-"));
 
 const packages = [
   {
-    dir: path.join(repoRoot, "packages", "cloud-sdk"),
-    expectedName: "@voyantjs/cloud-sdk",
+    dir: path.join(repoRoot, "packages", "data-sdk"),
+    expectedName: "@voyantjs/data-sdk",
   },
 ];
 
@@ -54,6 +54,12 @@ function installPackedPackage(appDir, tarballPath, packageName) {
   rmSync(extractDir, { force: true, recursive: true });
 }
 
+/**
+ * Confirms the public package, when installed, exposes the seven top-level
+ * sub-product namespaces (`static`, `fx`, `seo`, `reviews`, `hotels`,
+ * `restaurants`, `experiences`) and a representative method on each. The
+ * full per-route surface is verified by `verify:client-route-coverage`.
+ */
 function verifyInstalledImports(tarballs) {
   const appDir = mkdtempSync(path.join(tmpdir(), "voyant-sdk-app-"));
 
@@ -83,21 +89,50 @@ function verifyInstalledImports(tarballs) {
         "-e",
         `
           import assert from "node:assert/strict";
-          import { createVoyantCloudClient } from "@voyantjs/cloud-sdk";
+          import { createVoyantDataClient } from "@voyantjs/data-sdk";
 
-          const cloud = createVoyantCloudClient({ apiKey: "cloud_key" });
+          const data = createVoyantDataClient({ apiKey: "data_key" });
 
-          assert.equal(typeof cloud.vault.listVaults, "function");
-          assert.equal(typeof cloud.vault.listSecrets, "function");
-          assert.equal(typeof cloud.vault.getSecret, "function");
-          assert.equal(typeof cloud.sms.listPhoneNumbers, "function");
-          assert.equal(typeof cloud.sms.listMessages, "function");
-          assert.equal(typeof cloud.sms.sendMessage, "function");
-          assert.equal(typeof cloud.verification.start, "function");
-          assert.equal(typeof cloud.verification.check, "function");
-          assert.equal(typeof cloud.email.listMessages, "function");
-          assert.equal(typeof cloud.email.sendMessage, "function");
-          assert.equal(typeof cloud.email.getMessage, "function");
+          // static
+          assert.equal(typeof data.static.countries.list, "function");
+          assert.equal(typeof data.static.countries.get, "function");
+          assert.equal(typeof data.static.airports.search, "function");
+          assert.equal(typeof data.static.airports.nearby, "function");
+          assert.equal(typeof data.static.airlines.get, "function");
+          assert.equal(typeof data.static.aircraft.list, "function");
+          assert.equal(typeof data.static.languages.list, "function");
+          assert.equal(typeof data.static.currencies.get, "function");
+          assert.equal(typeof data.static.timezones.list, "function");
+          assert.equal(typeof data.static.geographicRegions.list, "function");
+
+          // fx
+          assert.equal(typeof data.fx.latest, "function");
+          assert.equal(typeof data.fx.pair, "function");
+          assert.equal(typeof data.fx.enriched, "function");
+          assert.equal(typeof data.fx.history, "function");
+          assert.equal(typeof data.fx.codes, "function");
+          assert.equal(typeof data.fx.quota, "function");
+
+          // seo
+          assert.equal(typeof data.seo.serp.google.organic.searches.create, "function");
+          assert.equal(typeof data.seo.serp.google.organic.searches.screenshot, "function");
+          assert.equal(typeof data.seo.keywordsData.googleAds.searchVolume.create, "function");
+          assert.equal(typeof data.seo.aiOptimization.aiKeywordData.keywordVolumes.create, "function");
+          assert.equal(typeof data.seo.backlinks.summary.create, "function");
+          assert.equal(typeof data.seo.dataforseoLabs.google.keywordOverview.create, "function");
+          assert.equal(typeof data.seo.onPage.siteAudits.create, "function");
+          assert.equal(typeof data.seo.businessData.google.myBusinessInfo.create, "function");
+          assert.equal(typeof data.seo.contentAnalysis.search.create, "function");
+          assert.equal(typeof data.seo.domainAnalytics.whois.list.create, "function");
+
+          // verticals
+          assert.equal(typeof data.reviews.google.reviews.create, "function");
+          assert.equal(typeof data.reviews.trustpilot.search.create, "function");
+          assert.equal(typeof data.hotels.google.hotelSearches.create, "function");
+          assert.equal(typeof data.hotels.tripadvisor.searches.create, "function");
+          assert.equal(typeof data.hotels.tripadvisor.reference.locations.list, "function");
+          assert.equal(typeof data.restaurants.tripadvisor.searches.create, "function");
+          assert.equal(typeof data.experiences.tripadvisor.searches.create, "function");
         `,
       ],
       {
@@ -110,6 +145,11 @@ function verifyInstalledImports(tarballs) {
   }
 }
 
+/**
+ * Spot-checks that key public types resolve and that representative client
+ * methods type-check end-to-end. Each sub-product namespace gets one
+ * generic-shape assertion so future shape changes break the build loudly.
+ */
 function verifyInstalledTypecheck(tarballs) {
   const appDir = mkdtempSync(path.join(tmpdir(), "voyant-sdk-types-"));
 
@@ -154,100 +194,102 @@ function verifyInstalledTypecheck(tarballs) {
       path.join(appDir, "index.ts"),
       `
         import {
-          createVoyantCloudClient,
-          VoyantCloudClient,
-          type CheckVerificationInput,
-          type EmailMessageStatus,
-          type EmailMessageSummary,
-          type PhoneNumberCapabilities,
-          type PhoneNumberStatus,
-          type PhoneNumberSummary,
-          type SendEmailInput,
-          type SendSmsInput,
-          type SmsMessageStatus,
-          type SmsMessageSummary,
-          type StartVerificationInput,
-          type VaultSecretSummary,
-          type VaultSecretValue,
-          type VaultSummary,
-          type VerificationAttemptStatus,
-          type VerificationAttemptSummary,
-          type VerificationChannel,
-          type VerificationCheckResult,
-          type VoyantCloudClientOptions,
-        } from "@voyantjs/cloud-sdk";
+          createVoyantDataClient,
+          VoyantDataClient,
+          type Aircraft,
+          type AircraftCategory,
+          type Airline,
+          type Airport,
+          type AirportType,
+          type City,
+          type Country,
+          type CurrencyEntry,
+          type FxLatestResponse,
+          type FxPairResponse,
+          type GeographicRegion,
+          type GoogleHotelSearchesRequest,
+          type GoogleQaRequest,
+          type GoogleReviewsRequest,
+          type LanguageEntry,
+          type ListResponse,
+          type Region,
+          type Search,
+          type SingleResponse,
+          type TimezoneEntry,
+          type TripadvisorSearchRequest,
+          type TrustpilotSearchRequest,
+          type VoyantDataClientOptions,
+        } from "@voyantjs/data-sdk";
 
-        const cloud: VoyantCloudClient = createVoyantCloudClient({
-          apiKey: "cloud_key",
-        } satisfies VoyantCloudClientOptions);
+        const client: VoyantDataClient = createVoyantDataClient({
+          apiKey: "data_key",
+        } satisfies VoyantDataClientOptions);
 
-        const vaultsPromise: Promise<VaultSummary[]> = cloud.vault.listVaults();
-        const secretsPromise: Promise<VaultSecretSummary[]> =
-          cloud.vault.listSecrets("primary");
-        const secretPromise: Promise<VaultSecretValue> = cloud.vault.getSecret(
-          "primary",
-          "stripe-key",
-        );
-        const phoneNumbersPromise: Promise<PhoneNumberSummary[]> =
-          cloud.sms.listPhoneNumbers();
-        const messagesPromise: Promise<SmsMessageSummary[]> =
-          cloud.sms.listMessages();
+        // static
+        const countriesPromise: Promise<ListResponse<Country>> =
+          client.static.countries.list({ region: "Europe" });
+        const countryPromise: Promise<SingleResponse<Country>> =
+          client.static.countries.get("RO");
+        const regionPromise: Promise<SingleResponse<Region>> =
+          client.static.regions.get("US-CA");
+        const cityPromise: Promise<SingleResponse<City>> =
+          client.static.cities.get("2643743");
+        const airportPromise: Promise<SingleResponse<Airport>> =
+          client.static.airports.get("LHR");
+        const airlinePromise: Promise<SingleResponse<Airline>> =
+          client.static.airlines.get("BA");
+        const aircraftPromise: Promise<SingleResponse<Aircraft>> =
+          client.static.aircraft.get("359");
+        const languagesPromise: Promise<ListResponse<LanguageEntry>> =
+          client.static.languages.list();
+        const currenciesPromise: Promise<ListResponse<CurrencyEntry>> =
+          client.static.currencies.list();
+        const timezonesPromise: Promise<ListResponse<TimezoneEntry>> =
+          client.static.timezones.list();
+        const geoRegionsPromise: Promise<ListResponse<GeographicRegion>> =
+          client.static.geographicRegions.list();
 
-        const sendInput: SendSmsInput = {
-          to: "+14155551234",
-          body: "Hello from Voyant Cloud",
-        };
-        const sendPromise: Promise<SmsMessageSummary> =
-          cloud.sms.sendMessage(sendInput);
+        // fx
+        const fxLatestPromise: Promise<FxLatestResponse> = client.fx.latest("EUR");
+        const fxPairPromise: Promise<FxPairResponse> = client.fx.pair("EUR", "USD", 100);
 
-        const startInput: StartVerificationInput = {
-          to: "+14155551234",
-          channel: "sms" satisfies VerificationChannel,
-        };
-        const startPromise: Promise<VerificationAttemptSummary> =
-          cloud.verification.start(startInput);
-        const checkInput: CheckVerificationInput = {
-          to: "+14155551234",
-          code: "123456",
-        };
-        const checkPromise: Promise<VerificationCheckResult> =
-          cloud.verification.check(checkInput);
+        // seo (typed namespaces)
+        const serpCreatePromise: Promise<SingleResponse<Search>> =
+          client.seo.serp.google.organic.searches.create({} as never);
 
-        const emailListPromise: Promise<EmailMessageSummary[]> =
-          cloud.email.listMessages();
-        const emailSendInput: SendEmailInput = {
-          from: "noreply@example.com",
-          to: ["alice@example.com"],
-          subject: "Welcome",
-          text: "Hi",
-        };
-        const emailSendPromise: Promise<EmailMessageSummary> =
-          cloud.email.sendMessage(emailSendInput);
-        const emailGetPromise: Promise<EmailMessageSummary> =
-          cloud.email.getMessage("email_123");
+        // verticals — opaque request envelopes
+        const googleReviewsReq: GoogleReviewsRequest = {} as GoogleReviewsRequest;
+        const googleQaReq: GoogleQaRequest = {} as GoogleQaRequest;
+        const trustpilotReq: TrustpilotSearchRequest = {} as TrustpilotSearchRequest;
+        const hotelsReq: GoogleHotelSearchesRequest = {} as GoogleHotelSearchesRequest;
+        const tripReq: TripadvisorSearchRequest = {} as TripadvisorSearchRequest;
+        void client.reviews.google.reviews.create(googleReviewsReq);
+        void client.reviews.google.qa.run(googleQaReq);
+        void client.reviews.trustpilot.search.create(trustpilotReq);
+        void client.hotels.google.hotelSearches.create(hotelsReq);
+        void client.hotels.tripadvisor.searches.create(tripReq);
+        void client.restaurants.tripadvisor.searches.create(tripReq);
+        void client.experiences.tripadvisor.searches.create(tripReq);
 
-        const phoneStatus: PhoneNumberStatus = "active";
-        const messageStatus: SmsMessageStatus = "queued";
-        const attemptStatus: VerificationAttemptStatus = "pending";
-        const emailStatus: EmailMessageStatus = "delivered";
-        const capabilities: PhoneNumberCapabilities = { sms: true };
+        const airportType: AirportType = "large_airport";
+        const aircraftCategory: AircraftCategory = "wide_body";
 
-        void vaultsPromise;
-        void secretsPromise;
-        void secretPromise;
-        void phoneNumbersPromise;
-        void messagesPromise;
-        void sendPromise;
-        void startPromise;
-        void checkPromise;
-        void emailListPromise;
-        void emailSendPromise;
-        void emailGetPromise;
-        void phoneStatus;
-        void messageStatus;
-        void attemptStatus;
-        void emailStatus;
-        void capabilities;
+        void countriesPromise;
+        void countryPromise;
+        void regionPromise;
+        void cityPromise;
+        void airportPromise;
+        void airlinePromise;
+        void aircraftPromise;
+        void languagesPromise;
+        void currenciesPromise;
+        void timezonesPromise;
+        void geoRegionsPromise;
+        void fxLatestPromise;
+        void fxPairPromise;
+        void serpCreatePromise;
+        void airportType;
+        void aircraftCategory;
       `,
     );
 
