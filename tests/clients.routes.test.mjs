@@ -182,6 +182,7 @@ test("fx — returns camelCase fields when the worker forwards snake_case JSON",
   const recorder = createRecorder({
     responseBody: {
       result: "success",
+      source: "bnr",
       base_code: "EUR",
       target_code: "USD",
       conversion_rate: 1.08,
@@ -198,6 +199,7 @@ test("fx — returns camelCase fields when the worker forwards snake_case JSON",
 
   assert.deepEqual(result, {
     result: "success",
+    source: "bnr",
     baseCode: "EUR",
     targetCode: "USD",
     conversionRate: 1.08,
