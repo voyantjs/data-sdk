@@ -3,7 +3,11 @@
  * mirrors the upstream response shape; the SDK exposes them as opaque records
  * so future provider field additions don't break callers.
  */
-export type FxResponse = Record<string, unknown>;
+export type FxSource = "bnr" | "voyant-data-fx";
+
+export interface FxResponse extends Record<string, unknown> {
+  source?: FxSource;
+}
 
 export interface FxLatestResponse extends FxResponse {
   result: string;
