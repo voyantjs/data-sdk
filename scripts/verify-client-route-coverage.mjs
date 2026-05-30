@@ -373,6 +373,7 @@ function extractClientRoutes(filePath) {
     if (expanded.startsWith("/data/hotels/")) return "hotels";
     if (expanded.startsWith("/data/restaurants/")) return "restaurants";
     if (expanded.startsWith("/data/experiences/")) return "experiences";
+    if (expanded.startsWith("/data/geo/")) return "geo";
     return null;
   }
 
@@ -440,6 +441,7 @@ const productOrder = [
   "hotels",
   "restaurants",
   "experiences",
+  "geo",
 ];
 for (const product of productOrder) {
   const manifest = routesManifest[product] ?? [];

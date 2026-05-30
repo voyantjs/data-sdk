@@ -47,7 +47,7 @@ const eurUsd = await client.fx.pair("EUR", "USD", 100);
 
 // geo: typed resources over one polymorphic gazetteer
 const danube = await client.geo.rivers.get("river:Q1653");
-// danube.relations.flows_through === ["DE", "AT", "SK", "HU", ...]
+// danube.relations.flowsThrough === ["DE", "AT", "SK", "HU", ...]
 const roRivers = await client.geo.countries.rivers("RO");
 const match = await client.geo.resolve("Dunărea"); // → the Danube
 ```

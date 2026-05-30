@@ -73,10 +73,14 @@ export interface CanonicalPlace {
 
 /**
  * Response for `geo.places.get` — the place plus its outgoing relations grouped
- * by kind, e.g. a river's `{ flows_through: ["DE", "AT", …] }`.
+ * by relation kind. The SDK transport camel-cases response keys, so a river's
+ * `flows_through` relations are exposed under `relations.flowsThrough`
+ * (e.g. `{ flowsThrough: ["DE", "AT", …] }`). The `?relation=` query param on
+ * `related()` still takes the snake-case `PlaceRelationKind` the API expects.
  */
 export interface PlaceWithRelations {
   data: CanonicalPlace;
+  /** Camel-cased relation kind (e.g. `flowsThrough`) → related place ids. */
   relations: Record<string, string[]>;
 }
 
