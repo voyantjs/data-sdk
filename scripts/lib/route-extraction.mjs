@@ -82,6 +82,12 @@ export const products = [
     workerPrefix: "/experiences",
     publicPrefix: "/data/experiences",
   },
+  {
+    key: "geo",
+    routesDir: "apps/data-geo-api/src/routes",
+    workerPrefix: "",
+    publicPrefix: "/data/geo",
+  },
 ];
 
 function* walkRouteFiles(dir) {

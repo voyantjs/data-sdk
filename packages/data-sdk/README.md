@@ -4,7 +4,7 @@ Public TypeScript client for the Voyant Data APIs.
 
 ## Scope
 
-`@voyantjs/data-sdk` is the unified client for the seven sub-products that
+`@voyantjs/data-sdk` is the unified client for the eight sub-products that
 make up the Voyant Data product, all served behind a single hostname:
 
 - `client.static` — owned reference data (countries, regions, cities,
@@ -21,6 +21,10 @@ make up the Voyant Data product, all served behind a single hostname:
   reference)
 - `client.experiences` — TripAdvisor attractions/experiences (async
   resources + reference)
+- `client.geo` — canonical travel geography (gazetteer + resolver): countries,
+  regions, cities, ports, and waterways (rivers/seas/lakes/canals) with
+  multilingual names, coordinates, hierarchy, and `flows_through` relations,
+  plus `resolve` (provider label/code → canonical place)
 
 ## Install
 
@@ -40,6 +44,12 @@ const client = createVoyantDataClient({
 const countries = await client.static.countries.list({ region: "Europe" });
 const lhr = await client.static.airports.get("LHR");
 const eurUsd = await client.fx.pair("EUR", "USD", 100);
+
+// geo: typed resources over one polymorphic gazetteer
+const danube = await client.geo.rivers.get("river:Q1653");
+// danube.relations.flows_through === ["DE", "AT", "SK", "HU", ...]
+const roRivers = await client.geo.countries.rivers("RO");
+const match = await client.geo.resolve("Dunărea"); // → the Danube
 ```
 
 ## Shape
@@ -47,15 +57,21 @@ const eurUsd = await client.fx.pair("EUR", "USD", 100);
 Every sub-product is a top-level namespace on the client:
 
 - static reference: `client.static.{countries,regions,cities,airports,
-  airlines,aircraft,languages,currencies,timezones,geographicRegions}`
+airlines,aircraft,languages,currencies,timezones,geographicRegions}`
 - currency exchange: `client.fx.{latest,pair,enriched,history,codes,quota}`
 - SERP, keywords, AI optimization, backlinks, on-page, content analysis,
   domain analytics, business data, dataforseo-labs:
   `client.seo.{serp,keywordsData,aiOptimization,backlinks,onPage,
-  contentAnalysis,domainAnalytics,businessData,dataforseoLabs}`
+contentAnalysis,domainAnalytics,businessData,dataforseoLabs}`
 - async-resource verticals (Reviews, Hotels, Restaurants, Experiences):
   `client.{reviews,hotels,restaurants,experiences}` with `create`/`list`/
   `get`/(some) `run` per resource
+- geography: `client.geo.places.{list,search,get,children,ancestors,related,
+resolve}` (the raw routes) plus typed resources
+  `client.geo.{countries,regions,cities,ports,rivers}` and a one-shot
+  `client.geo.resolve(label)`. `geo.places.get(id)` returns the place with its
+  outgoing relations inline (e.g. a river's `flows_through` countries); the
+  `placeName(place, lang)` helper picks a name from the multilingual `names` map
 
 The static groups follow a consistent shape: `list` / `search` / `nearby`
 return a `ListResponse<T>` envelope (`{ data, totalCount, nextCursor? }`),
@@ -79,6 +95,10 @@ Useful exported types include:
   `TrustpilotSearchRequest`, `GoogleHotelSearchesRequest`,
   `TripadvisorSearchRequest`, `TripadvisorReviewsRequest`,
   `TripadvisorReferenceLocation`
+- geo: `CanonicalPlace`, `CanonicalPlaceType`, `PlaceWithRelations`,
+  `PlaceRelation`, `PlaceResolveRequest`, `PlaceResolveResult`,
+  `CountryAttributes`, `CityAttributes`, `WaterwayAttributes` (+ `placeName`
+  helper)
 - options: `VoyantDataClientOptions`
 
 ## Notes
@@ -87,7 +107,8 @@ Useful exported types include:
 - request auth defaults to `authorization: Bearer <apiKey>`
 - API tokens are scoped per sub-product (`data:static:read`,
   `data:fx:read`, `data:seo:read`, `data:reviews:read`,
-  `data:hotels:read`, `data:restaurants:read`, `data:experiences:read`)
+  `data:hotels:read`, `data:restaurants:read`, `data:experiences:read`,
+  `data:geo:read`)
 - responses preserve the full `{ data, totalCount, nextCursor? }` envelope
   so consumers can paginate without losing metadata
 

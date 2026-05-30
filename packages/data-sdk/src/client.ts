@@ -247,6 +247,13 @@ import type {
   TrustpilotReviewsRequest,
   TrustpilotSearch,
   TrustpilotSearchRequest,
+  CanonicalPlace,
+  CanonicalPlaceType,
+  PlaceListParams,
+  PlaceRelationKind,
+  PlaceResolveRequest,
+  PlaceResolveResult,
+  PlaceWithRelations,
   VoyantDataClientOptions,
   WhoisListRequest,
   WhoisListResult,
@@ -259,6 +266,7 @@ const REVIEWS = "/data/reviews/v1";
 const HOTELS = "/data/hotels/v1";
 const RESTAURANTS = "/data/restaurants/v1";
 const EXPERIENCES = "/data/experiences/v1";
+const GEO = "/data/geo/v1";
 
 function enc(value: string): string {
   return encodeURIComponent(value);
@@ -269,9 +277,9 @@ interface AsyncListParams extends PaginationParams {
 }
 
 /**
- * Public client for the Voyant Data API. All seven sub-products (`static`,
- * `fx`, `seo`, `reviews`, `hotels`, `restaurants`, `experiences`) are routed
- * through `api.voyantjs.com/data/{product}/v1/*`.
+ * Public client for the Voyant Data API. All eight sub-products (`static`,
+ * `fx`, `seo`, `reviews`, `hotels`, `restaurants`, `experiences`, `geo`) are
+ * routed through `api.voyantjs.com/data/{product}/v1/*`.
  */
 export class VoyantDataClient {
   readonly transport: VoyantTransport;
@@ -279,6 +287,7 @@ export class VoyantDataClient {
   readonly static: ReturnType<VoyantDataClient["buildStatic"]>;
   readonly fx: ReturnType<VoyantDataClient["buildFx"]>;
   readonly seo: ReturnType<VoyantDataClient["buildSeo"]>;
+  readonly geo: ReturnType<VoyantDataClient["buildGeo"]>;
   readonly reviews: ReturnType<VoyantDataClient["buildReviews"]>;
   readonly hotels: ReturnType<VoyantDataClient["buildHotels"]>;
   readonly restaurants: {
@@ -298,6 +307,7 @@ export class VoyantDataClient {
     this.static = this.buildStatic();
     this.fx = this.buildFx();
     this.seo = this.buildSeo();
+    this.geo = this.buildGeo();
     this.reviews = this.buildReviews();
     this.hotels = this.buildHotels();
     this.restaurants = {
@@ -305,6 +315,101 @@ export class VoyantDataClient {
     };
     this.experiences = {
       tripadvisor: this.buildTripadvisorVertical(EXPERIENCES),
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // /data/geo — canonical travel geography (gazetteer + resolver)
+  // ─────────────────────────────────────────────────────────────
+
+  private buildGeo() {
+    const t = this.transport;
+    const places = {
+      list: (params?: PlaceListParams) =>
+        t.request<ListResponse<CanonicalPlace>>(`${GEO}/places`, {
+          query: params,
+          unwrapData: false,
+        }),
+      search: (params: {
+        q: string;
+        type?: CanonicalPlaceType;
+        limit?: number;
+      }) =>
+        t.request<ListResponse<CanonicalPlace>>(`${GEO}/places/search`, {
+          query: params,
+          unwrapData: false,
+        }),
+      get: (id: string) =>
+        t.request<PlaceWithRelations>(`${GEO}/places/${enc(id)}`, {
+          unwrapData: false,
+        }),
+      children: (id: string, params?: { type?: CanonicalPlaceType }) =>
+        t.request<ListResponse<CanonicalPlace>>(
+          `${GEO}/places/${enc(id)}/children`,
+          { query: params, unwrapData: false },
+        ),
+      ancestors: (id: string) =>
+        t.request<{ data: CanonicalPlace[] }>(
+          `${GEO}/places/${enc(id)}/ancestors`,
+          { unwrapData: false },
+        ),
+      related: (
+        id: string,
+        params?: {
+          relation?: PlaceRelationKind;
+          type?: CanonicalPlaceType;
+          direction?: "incoming" | "outgoing";
+        },
+      ) =>
+        t.request<ListResponse<CanonicalPlace>>(
+          `${GEO}/places/${enc(id)}/related`,
+          { query: params, unwrapData: false },
+        ),
+      resolve: (request: PlaceResolveRequest) =>
+        t.request<PlaceResolveResult>(`${GEO}/places/resolve`, {
+          method: "POST",
+          body: request,
+          unwrapData: false,
+        }),
+    };
+
+    // Typed convenience surfaces over the single `places` table — callers write
+    // geo.countries.list() instead of geo.places.list({ type: "country" }).
+    const typed = (type: CanonicalPlaceType) => ({
+      list: (params?: Omit<PlaceListParams, "type">) =>
+        places.list({ ...params, type }),
+      get: (id: string) => places.get(id),
+    });
+
+    return {
+      places,
+      countries: {
+        ...typed("country"),
+        /** Rivers flowing through this country. */
+        rivers: (iso2: string) =>
+          places.related(iso2, { relation: "flows_through", type: "river" }),
+      },
+      regions: typed("region"),
+      cities: typed("city"),
+      ports: typed("port"),
+      rivers: {
+        ...typed("river"),
+        /** The countries a river flows through. */
+        countries: (id: string) =>
+          places.related(id, {
+            relation: "flows_through",
+            direction: "outgoing",
+          }),
+      },
+      /** Resolve a single provider label/code to a canonical place (any type). */
+      resolve: (
+        label: string,
+        hints?: {
+          providerCode?: string;
+          countryHint?: string;
+          typeHint?: CanonicalPlaceType;
+        },
+      ) => places.resolve({ items: [{ label, ...hints }] }),
     };
   }
 
@@ -954,10 +1059,9 @@ export class VoyantDataClient {
       },
       filters: {
         get: () =>
-          t.request<SingleResponse<FilterCatalog>>(
-            `${SEO}/backlinks/filters`,
-            { unwrapData: false },
-          ),
+          t.request<SingleResponse<FilterCatalog>>(`${SEO}/backlinks/filters`, {
+            unwrapData: false,
+          }),
       },
       summary: post<BacklinksSummaryRequest, BacklinksSummaryResult>("summary"),
       history: post<BacklinksHistoryRequest, BacklinksHistoryResult>("history"),
@@ -1044,12 +1148,13 @@ export class VoyantDataClient {
               technology?: string;
             },
           ) =>
-            t.request<
-              ListResponse<DomainAnalyticsTechnologyCatalogEntry>
-            >(`${SEO}/domain-analytics/technologies/catalog`, {
-              query: params,
-              unwrapData: false,
-            }),
+            t.request<ListResponse<DomainAnalyticsTechnologyCatalogEntry>>(
+              `${SEO}/domain-analytics/technologies/catalog`,
+              {
+                query: params,
+                unwrapData: false,
+              },
+            ),
         },
         filters: {
           get: () =>
@@ -1172,23 +1277,25 @@ export class VoyantDataClient {
       },
       sentimentAnalysis: {
         create: (request: ContentAnalysisSentimentAnalysisRequest) =>
-          t.request<
-            SingleResponse<ContentAnalysisSentimentAnalysisResult>
-          >(`${SEO}/content-analysis/sentiment-analysis`, {
-            method: "POST",
-            body: request,
-            unwrapData: false,
-          }),
+          t.request<SingleResponse<ContentAnalysisSentimentAnalysisResult>>(
+            `${SEO}/content-analysis/sentiment-analysis`,
+            {
+              method: "POST",
+              body: request,
+              unwrapData: false,
+            },
+          ),
       },
       ratingDistribution: {
         create: (request: ContentAnalysisRatingDistributionRequest) =>
-          t.request<
-            SingleResponse<ContentAnalysisRatingDistributionResult>
-          >(`${SEO}/content-analysis/rating-distribution`, {
-            method: "POST",
-            body: request,
-            unwrapData: false,
-          }),
+          t.request<SingleResponse<ContentAnalysisRatingDistributionResult>>(
+            `${SEO}/content-analysis/rating-distribution`,
+            {
+              method: "POST",
+              body: request,
+              unwrapData: false,
+            },
+          ),
       },
       phraseTrends: {
         create: (request: ContentAnalysisPhraseTrendsRequest) =>
@@ -1199,32 +1306,37 @@ export class VoyantDataClient {
       },
       categoryTrends: {
         create: (request: ContentAnalysisCategoryTrendsRequest) =>
-          t.request<
-            SingleResponse<ContentAnalysisCategoryTrendsResult>
-          >(`${SEO}/content-analysis/category-trends`, {
-            method: "POST",
-            body: request,
-            unwrapData: false,
-          }),
+          t.request<SingleResponse<ContentAnalysisCategoryTrendsResult>>(
+            `${SEO}/content-analysis/category-trends`,
+            {
+              method: "POST",
+              body: request,
+              unwrapData: false,
+            },
+          ),
       },
     };
   }
 
   private buildOnPage() {
     const t = this.transport;
-    const auditChild = <T>(suffix: string) =>
+    const auditChild =
+      <T>(suffix: string) =>
       (id: string, request?: SiteAuditResultRequest) =>
         t.request<SingleResponse<T>>(
           `${SEO}/on-page/site-audits/${enc(id)}/${suffix}`,
-          { method: "POST", body: (request ?? {}) as object, unwrapData: false },
+          {
+            method: "POST",
+            body: (request ?? {}) as object,
+            unwrapData: false,
+          },
         );
     return {
       filters: {
         get: () =>
-          t.request<SingleResponse<FilterCatalog>>(
-            `${SEO}/on-page/filters`,
-            { unwrapData: false },
-          ),
+          t.request<SingleResponse<FilterCatalog>>(`${SEO}/on-page/filters`, {
+            unwrapData: false,
+          }),
       },
       lighthouse: {
         availableAudits: {
@@ -1268,13 +1380,12 @@ export class VoyantDataClient {
       },
       siteAudits: {
         create: (request: SiteAuditCreateRequest) =>
-          t.request<SingleResponse<SiteAudit>>(
-            `${SEO}/on-page/site-audits`,
-            { method: "POST", body: request, unwrapData: false },
-          ),
-        listReady: (
-          params?: PaginationParams & { status?: SiteAuditStatus },
-        ) =>
+          t.request<SingleResponse<SiteAudit>>(`${SEO}/on-page/site-audits`, {
+            method: "POST",
+            body: request,
+            unwrapData: false,
+          }),
+        listReady: (params?: PaginationParams & { status?: SiteAuditStatus }) =>
           t.request<ListResponse<SiteAudit>>(`${SEO}/on-page/site-audits`, {
             query: params,
             unwrapData: false,
@@ -1294,19 +1405,15 @@ export class VoyantDataClient {
         uncrawlableResources: auditChild<SiteAuditUncrawlableResourcesResult>(
           "uncrawlable-resources",
         ),
-        pagesByResource: auditChild<SiteAuditPageByResourceResult>(
-          "pages-by-resource",
-        ),
+        pagesByResource:
+          auditChild<SiteAuditPageByResourceResult>("pages-by-resource"),
         links: auditChild<SiteAuditLinksResult>("links"),
-        redirectChains: auditChild<SiteAuditRedirectChainsResult>(
-          "redirect-chains",
-        ),
-        duplicateTags: auditChild<SiteAuditDuplicateTagsResult>(
-          "duplicate-tags",
-        ),
-        duplicateContent: auditChild<SiteAuditDuplicateContentResult>(
-          "duplicate-content",
-        ),
+        redirectChains:
+          auditChild<SiteAuditRedirectChainsResult>("redirect-chains"),
+        duplicateTags:
+          auditChild<SiteAuditDuplicateTagsResult>("duplicate-tags"),
+        duplicateContent:
+          auditChild<SiteAuditDuplicateContentResult>("duplicate-content"),
         nonIndexable: auditChild<SiteAuditNonIndexableResult>("non-indexable"),
         waterfall: (
           id: string,
@@ -1631,10 +1738,9 @@ export class VoyantDataClient {
           HistoricalRankOverviewRequest,
           HistoricalRankOverviewResult
         >("historical-rank-overview"),
-        pageIntersection: post<
-          PageIntersectionRequest,
-          PageIntersectionResult
-        >("page-intersection"),
+        pageIntersection: post<PageIntersectionRequest, PageIntersectionResult>(
+          "page-intersection",
+        ),
         historicalSerps: post<HistoricalSerpsRequest, HistoricalSerpsResult>(
           "historical-serps",
         ),

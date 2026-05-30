@@ -272,5 +272,14 @@
     "GET /data/experiences/v1/tripadvisor/searches/:id",
     "POST /data/experiences/v1/tripadvisor/reviews",
     "POST /data/experiences/v1/tripadvisor/searches"
+  ],
+  "geo": [
+    "GET /data/geo/v1/places",
+    "GET /data/geo/v1/places/:id",
+    "GET /data/geo/v1/places/:id/ancestors",
+    "GET /data/geo/v1/places/:id/children",
+    "GET /data/geo/v1/places/:id/related",
+    "GET /data/geo/v1/places/search",
+    "POST /data/geo/v1/places/resolve"
   ]
 }
