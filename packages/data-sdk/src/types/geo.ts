@@ -75,10 +75,12 @@ export interface CanonicalPlace {
   name?: string;
   nameLang?: string;
   /**
-   * Locale → display name, e.g. `{ en: "Danube", ro: "Dunărea" }`. The full map;
-   * pass `names: false` to a geo call to omit it when only `name` is needed.
+   * Locale → display name, e.g. `{ en: "Danube", ro: "Dunărea" }`. The full map.
+   * Optional because a geo call with `names: false` omits it from the response
+   * (only the resolved `name` is returned) — guard before indexing, or use the
+   * `placeName` helper / `name` field.
    */
-  names: Record<string, string>;
+  names?: Record<string, string>;
   aliases?: string[];
   attributes?: Record<string, unknown>;
 }
