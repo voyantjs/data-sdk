@@ -76,9 +76,9 @@ export interface CanonicalPlace {
   nameLang?: string;
   /**
    * Locale → display name, e.g. `{ en: "Danube", ro: "Dunărea" }`. The full map.
-   * Optional because a geo call with `names: false` omits it from the response
-   * (only the resolved `name` is returned) — guard before indexing, or use the
-   * `placeName` helper / `name` field.
+   * Optional because it is omitted by default — a geo read returns only the
+   * resolved `name` unless you pass `names: true`. Guard before indexing, or use
+   * the `placeName` helper / `name` field.
    */
   names?: Record<string, string>;
   aliases?: string[];
@@ -147,10 +147,10 @@ export interface PlaceResolveResult {
 
 /**
  * Language controls shared by every geo read. `lang` overrides the client-level
- * language for one call; `names: false` drops the full `names` map from the
- * response (keeping only the resolved `name`). A `type` alias (not interface) so
- * it carries an implicit index signature and satisfies the transport's
- * QueryParams when passed as `query`.
+ * language for one call; `names: true` includes the full `names` map (omitted by
+ * default — responses carry only the resolved `name`). A `type` alias (not
+ * interface) so it carries an implicit index signature and satisfies the
+ * transport's QueryParams when passed as `query`.
  */
 export type PlaceLangParams = {
   lang?: string;
