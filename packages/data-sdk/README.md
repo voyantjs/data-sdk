@@ -74,7 +74,7 @@ contentAnalysis,domainAnalytics,businessData,dataforseoLabs}`
   `get`/(some) `run` per resource
 - geography: `client.geo.places.{list,search,get,children,ancestors,related,
 resolve}` (the raw routes) plus typed resources
-  `client.geo.{countries,regions,cities,ports,rivers}` and a one-shot
+  `client.geo.{countries,regions,subdivisions,cities,ports,rivers}` and a one-shot
   `client.geo.resolve(label)`. `geo.places.get(id)` returns the place with its
   outgoing relations inline (e.g. a river's `flows_through` countries).
   Multilingual: set `lang` on the client (or pass `lang` per call) and read the

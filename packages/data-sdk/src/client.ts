@@ -407,8 +407,13 @@ export class VoyantDataClient {
         /** Rivers flowing through this country. */
         rivers: (iso2: string) =>
           places.related(iso2, { relation: "flows_through", type: "river" }),
+        /** ISO 3166-2 subdivisions (states/provinces) of this country. */
+        subdivisions: (iso2: string, params?: PlaceLangParams) =>
+          places.children(iso2, { ...params, type: "subdivision" }),
       },
       regions: typed("region"),
+      /** ISO 3166-2 subdivisions; the id is the code, e.g. `US-CA`. */
+      subdivisions: typed("subdivision"),
       cities: typed("city"),
       ports: typed("port"),
       rivers: {
