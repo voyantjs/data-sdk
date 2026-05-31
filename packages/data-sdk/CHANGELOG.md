@@ -1,5 +1,19 @@
 # @voyantjs/data-sdk
 
+## 0.3.0
+
+### Minor Changes
+
+- 3cc22ff: geo: multilingual support. Configure a language once with
+  `createVoyantDataClient({ lang })` (or override per call) and read the
+  server-resolved `place.name`/`place.nameLang` in that language — backed by an
+  English then any-available fallback. Adds `PlaceLangParams` (`lang`, `names`) to
+  every geo read, `name`/`nameLang` on `CanonicalPlace`, and `names: false` to omit
+  the full `names` map.
+- 4b60116: geo: add the `subdivisions` typed resource — `client.geo.subdivisions.{list,get}`
+  (ISO 3166-2 states/provinces; the id is the code, e.g. `US-CA`) and
+  `client.geo.countries.subdivisions(iso2)` for a country's subdivisions.
+
 ## 0.2.0
 
 ### Minor Changes
