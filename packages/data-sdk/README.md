@@ -78,9 +78,9 @@ resolve}` (the raw routes) plus typed resources
   `client.geo.resolve(label)`. `geo.places.get(id)` returns the place with its
   outgoing relations inline (e.g. a river's `flows_through` countries).
   Multilingual: set `lang` on the client (or pass `lang` per call) and read the
-  server-resolved `place.name`/`place.nameLang`; pass `names: false` to drop the
-  full map. The `placeName(place, lang)` helper re-resolves from a `names` map
-  client-side
+  server-resolved `place.name`/`place.nameLang`; pass `names: true` to also get
+  the full `names` map (omitted by default). The `placeName(place, lang)` helper
+  re-resolves from a `names` map client-side
 
 The static groups follow a consistent shape: `list` / `search` / `nearby`
 return a `ListResponse<T>` envelope (`{ data, totalCount, nextCursor? }`),
